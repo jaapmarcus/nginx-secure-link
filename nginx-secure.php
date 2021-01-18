@@ -13,6 +13,7 @@ License: MIT
 	
 	class NginxSecure {
 		private $options;
+        private $domains;
 		
 		function __construct(){
 			
@@ -20,8 +21,10 @@ License: MIT
 			$this -> options = get_option('nginx-secure');
 			if(empty($this -> options)){
 				$this -> options = array('secret' => 'secret_key', 'ttl' => 3600,
-					'extensions' => 'mp4,webm,ogg,ogv,mp3');
+					'extensions' => 'mp4,webm,ogg,ogv,mp3','domains' => '');
 			}
+            $this -> domains = explode(',',$this -> options['domains']);
+            $this -> domains[] = $_SERVER['HTTP_HOST'];
 		}
 		
 		function secure_url($url, $path){
@@ -31,15 +34,14 @@ License: MIT
 			$md5 = base64_encode($md5);
 			$md5 = strtr($md5, '+/', '-_');
 			$md5 = str_replace('=', '', $md5);
-			
 			//var_dump($url . $path . '?md5=' . $md5 . '&expires=' . $expires);
 			return $url . $path . '?md5=' . $md5 . '&expires=' . $expires;
 		
 		}
 
 		function convert($match){
-			//var_dump($match);
-			if(strpos($match[0], $_SERVER['HTTP_HOST'])){
+            $nmatch = str_replace($this -> domains, '',$match[0]);
+            if($nmatch != $match[0]){
 				//we need to phrase it
 				$url = parse_url($match[1].'.'.$match[2]);
 				//echo $match[1].'.'.$match[2];
@@ -132,12 +134,19 @@ Class NginxSecureSettings {
 			'nginx-secure-settings',
 			'nginx-secure-settings',
 		);
+        add_settings_field(
+            'domains', // id
+            __('Domains','nginx-secure'), // title
+                array( $this, 'domains' ), // callback
+            'nginx-secure-settings',
+            'nginx-secure-settings',
+        );
 	
 	}	
 	
 	function info(){
 		?>
-			<div>Hier komt wat tekst</div>
+			<div>Domains without http(s):// and folder names. Also exclude the <?php echo $_SERVER['SERVER_NAME'];?></div>
 		<?php
 	}
 	
@@ -153,6 +162,9 @@ Class NginxSecureSettings {
 		if ( isset( $input['extensions'] ) ) {
 			$sanitary_values['extensions'] = sanitize_text_field( $input['extensions'] );		
 		}
+        if ( isset( $input['domains'] ) ) {
+            $sanitary_values['domains'] = sanitize_text_field( preg_replace('#\s+#',',',trim($input['domains'])));		
+        }
 			
 		return $sanitary_values;
 	}
@@ -174,7 +186,12 @@ Class NginxSecureSettings {
 			isset( $this->settings['extensions'] ) ? esc_attr( $this->settings['extensions']) : ''
 		);
 	}
-
+    function domains(){
+        printf(
+            '<textarea class="regular-text" type="text" name="nginx-secure[domains]" id="domains">%s</textarea>',
+            isset( $this->settings['domains'] ) ? esc_attr( str_replace(',',"\n",$this->settings['domains'])) : ''
+        );
+    }
 	function SettingsPage(){
 		?>
 		<div class="">
