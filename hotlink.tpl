@@ -13,7 +13,9 @@ server {
         deny all;
         access_log off;
     }
-
+    
+    include %home%/%user%/conf/web/%domain%/nginx.forcessl.conf*;
+    
     location / {
         proxy_pass      https://%ip%:%web_ssl_port%;
 
